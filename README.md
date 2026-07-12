@@ -4,7 +4,7 @@
 
 <br>
 
-![Frida 17.9.1](https://img.shields.io/badge/Frida-17.9.1-6554C0?style=for-the-badge&logo=frida&logoColor=white)
+![Frida 17.9.1](https://img.shields.io/badge/Frida-17.9.1-6554C0?style=for-the-badge&logoColor=white)
 ![Android arm64](https://img.shields.io/badge/Android-arm64-3DDC84?style=for-the-badge&logo=android&logoColor=101820)
 ![QuickJS](https://img.shields.io/badge/Runtime-QuickJS-F7DF1E?style=for-the-badge&logo=javascript&logoColor=101820)
 ![W^X](https://img.shields.io/badge/Memory-W%5EX-FFB703?style=for-the-badge&logoColor=101820)
@@ -14,29 +14,28 @@
 `frida-banana` removes Frida's anonymous `rwxp` footprint, gives Gum allocations ART-like names,
 and replaces obvious runtime identifiers—without patching the target application's `.text` pages.
 
-[Build](#-build-from-source) · [Use](#-use-it) · [Verify](#-verify-on-device) · [Technical notes](STEALTH_FRIDA_BUILD_RESULT.md)
+[Download](#-download) · [Build](#-build-from-source) · [Use](#-use-it) · [Verify](#-verify-on-device) · [Technical notes](STEALTH_FRIDA_BUILD_RESULT.md)
 
 </div>
 
 > [!TIP]
-> **Prebuilt binaries** are attached to the
-> [**17.9.1 release**](https://github.com/enchantedglycerin/frida-banana/releases/tag/17.9.1)
-> (`stealth-frida-server-17.9.1-android-arm64` and its `.gz`). Prefer to build it yourself?
-> See [Build from source](#-build-from-source) — both paths produce the same binary; verify with
-> the checksums below.
+> **Want the ready-to-run server?** Get it from the
+> [**Frida Banana 17.9.1 release**](https://github.com/enchantedglycerin/frida-banana/releases/tag/17.9.1),
+> then verify its SHA-256 below. Prefer auditable source? The complete Android arm64 build recipe
+> is included in this README.
 
 ## 🍌 What makes it banana
 
-| Patch group | What changes | What you see at runtime |
+| Patch group | What changes | Runtime result |
 |---|---|---|
 | **W^X memory** | Android reports `GUM_RWX_NONE`; Gum writes into `RW` pages and commits them as `RX`. XOM softening uses `RX`, never `RWX`. | No Frida-created writable + executable mapping. |
 | **ART-like VMAs** | Gum's anonymous mappings are labeled through `PR_SET_VMA_ANON_NAME`. | `[anon:dalvik-LinearAlloc]` and `[anon:dalvik-jit-code-cache]` instead of unnamed mappings. |
 | **Neutral threads** | Obvious Gum/Frida worker names are replaced at their source. | Names such as `gc-worker`, `gc-daemon`, and `gc-container`. |
 | **Neutral agent memfd** | The injected agent resource is renamed consistently across creation and lookup paths. | `/memfd:art-jit-cache-64.so (deleted)` instead of `frida-agent-64.so`. |
 
-The exact implementation is intentionally small and reviewable:
+The implementation stays deliberately small and reviewable:
 
-- [`stealth-frida-gum.patch`](stealth-frida-gum.patch) — memory policy, VMA labels, and scheduler thread names
+- [`stealth-frida-gum.patch`](stealth-frida-gum.patch) — memory policy, VMA labels, and scheduler names
 - [`stealth-frida-core.patch`](stealth-frida-core.patch) — agent thread and memfd names
 - [`stealth-patches-BASE-COMMITS.txt`](stealth-patches-BASE-COMMITS.txt) — pinned upstream commits
 
@@ -48,24 +47,47 @@ The exact implementation is intentionally small and reviewable:
 
 ### ✅ This fork does
 
-- Preserve the Frida **17.9.1** protocol/version identity
+- Preserve the Frida **17.9.1** protocol identity
 - Force Gum's Android code path to follow **W^X**
 - Rename Gum-owned anonymous regions and visible workers
-- Keep the capture helper off target `.text` pages by using hardware breakpoints
+- Keep the capture helper off target `.text` pages through hardware breakpoints
+- Pin the root and vendored subprojects to version **17.9.1**
 
 </td>
 <td width="50%" valign="top">
 
 ### 🚫 This fork does not
 
-- Hide every possible Frida artifact or guarantee universal stealth
-- Cover V8's JIT-generated mappings
-- Bundle a server binary, Android NDK, or host tools
-- Replace the need for device-specific acceptance testing
+- Promise universal invisibility against every detector
+- Cover mappings created by V8's independent JIT allocator
+- Commit generated server binaries into the Git source tree
+- Bundle the Android NDK or host-side Frida tools
+- Replace device-specific acceptance testing
 
 </td>
 </tr>
 </table>
+
+## 📦 Download
+
+Prebuilt Android arm64 artifacts are published on the
+[**17.9.1 release page**](https://github.com/enchantedglycerin/frida-banana/releases/tag/17.9.1).
+
+| Artifact | Size | SHA-256 |
+|---|---:|---|
+| [`stealth-frida-server-17.9.1-android-arm64`](https://github.com/enchantedglycerin/frida-banana/releases/download/17.9.1/stealth-frida-server-17.9.1-android-arm64) | 53,091,240 bytes | `fa087dd74f5b09a24276ae3f5f6d454716c17efaa34a46deca92bb77c34f2f32` |
+| [`stealth-frida-server-17.9.1-android-arm64.gz`](https://github.com/enchantedglycerin/frida-banana/releases/download/17.9.1/stealth-frida-server-17.9.1-android-arm64.gz) | 23,351,182 bytes | `a8083db53db883200a9dce331a3a9275d482d7992ff3bf2ae35a443b76282c64` |
+
+Verify before running:
+
+```bash
+sha256sum stealth-frida-server-17.9.1-android-arm64
+```
+
+> [!NOTE]
+> These hashes identify the published reference artifacts. A local build should be compared
+> against them, but byte-for-byte reproduction from a fresh flattened clone has not yet been
+> completed across the documented toolchain.
 
 ## 🛠 Build from source
 
@@ -79,7 +101,7 @@ The exact implementation is intentionally small and reviewable:
 | Host | Linux or WSL2 |
 
 ```bash
-git clone --branch 17.9.1 https://github.com/enchantedglycerin/frida-banana.git
+git clone https://github.com/enchantedglycerin/frida-banana.git
 cd frida-banana
 
 export ANDROID_NDK_ROOT="$HOME/android-ndk-r29"
@@ -91,43 +113,39 @@ deps/toolchain-linux-x86_64/bin/ninja \
   subprojects/frida-core/server/frida-server
 ```
 
-The stripped server is produced at:
+The stripped server is written to:
 
 ```text
 build/subprojects/frida-core/server/frida-server
 ```
 
-### Download & checksums
-
-Prebuilt binaries are attached to the
-[**17.9.1 release**](https://github.com/enchantedglycerin/frida-banana/releases/tag/17.9.1):
-
-| Artifact | Size | SHA-256 |
-|---|---:|---|
-| [`stealth-frida-server-17.9.1-android-arm64`](https://github.com/enchantedglycerin/frida-banana/releases/download/17.9.1/stealth-frida-server-17.9.1-android-arm64) | 53,091,240 bytes | `fa087dd74f5b09a24276ae3f5f6d454716c17efaa34a46deca92bb77c34f2f32` |
-| [`stealth-frida-server-17.9.1-android-arm64.gz`](https://github.com/enchantedglycerin/frida-banana/releases/download/17.9.1/stealth-frida-server-17.9.1-android-arm64.gz) | 23,351,182 bytes | `a8083db53db883200a9dce331a3a9275d482d7992ff3bf2ae35a443b76282c64` |
-
-Matching the first hash means your build is byte-identical to the published binary. A fresh
-flattened-clone build has not yet been reproduced end-to-end, so treat the checksum as a
-reference for the published binary rather than a guarantee of your local toolchain's output.
+The committed version override keeps root and standalone vendored builds at `17.9.1`, even in a
+source archive without Git metadata.
 
 ## 🚀 Use it
 
-The host-side Frida packages must match the server:
+### 1. Install matching host bindings
 
 ```bash
 python -m pip install "frida==17.9.1" frida-tools
 ```
 
-Push and start your locally built server under a neutral filename and a non-default port:
+### 2. Push and start the server
+
+Use either the downloaded binary or your local build:
 
 ```bash
-adb push build/subprojects/frida-core/server/frida-server /data/local/tmp/.gc-srv
+# Published release binary
+adb push stealth-frida-server-17.9.1-android-arm64 /data/local/tmp/.gc-srv
+
+# Local build alternative:
+# adb push build/subprojects/frida-core/server/frida-server /data/local/tmp/.gc-srv
+
 adb shell su -c 'chmod 755 /data/local/tmp/.gc-srv'
 adb shell su -c '/data/local/tmp/.gc-srv -l 127.0.0.1:17173 &'
 ```
 
-Run scripts with **QuickJS**:
+### 3. Attach with QuickJS
 
 ```bash
 # Minimal presence / mapping probe
@@ -135,7 +153,7 @@ frida -H 127.0.0.1:17173 --runtime=qjs \
   -f com.example.app \
   -l presence_only.js
 
-# Project-specific capture helper (configured for libgame.so / OFF_CIPHER)
+# Project-specific capture harness (configured for libgame.so / OFF_CIPHER)
 frida -H 127.0.0.1:17173 --runtime=qjs \
   -f com.devsisters.crg \
   -l capture_hwbp.js
@@ -145,14 +163,13 @@ frida -H 127.0.0.1:17173 --runtime=qjs \
 module name, `OFF_CIPHER`, calling convention, and captured argument sizes before using it.
 
 > [!WARNING]
-> Do not use `--runtime=v8` for the low-footprint configuration. V8 has its own JIT allocator,
-> outside the Gum changes in this fork, and may create executable mappings that defeat the W^X
-> objective.
+> Use `--runtime=qjs`. V8 has its own JIT allocator outside the Gum changes in this fork and may
+> create executable mappings that defeat the low-footprint objective.
 
 ## 🔍 Verify on device
 
-Never infer success from one filtered grep. Compare against a clean baseline and count **all**
-writable + executable mappings:
+Never infer success from one filtered grep. Establish a clean application baseline, inject the
+agent, and compare **all** writable + executable mappings:
 
 ```bash
 PID="$(pidof com.example.app)"
@@ -173,23 +190,24 @@ A proper acceptance run should confirm:
 2. Gum code mappings are `r-xp`, not `rwxp`.
 3. The agent memfd and thread names match the neutral names above.
 4. The target remains stable for at least 60 seconds under the intended workload.
-5. `capture_hwbp.js` reaches `[CAPTURED]` without a target `.text` modification.
+5. `capture_hwbp.js` reaches `[CAPTURED]` without modifying target `.text` pages.
 
-See [`STEALTH_FRIDA_BUILD_RESULT.md`](STEALTH_FRIDA_BUILD_RESULT.md) for the full device procedure,
-failure interpretation, and rebuild notes.
+See [`STEALTH_FRIDA_BUILD_RESULT.md`](STEALTH_FRIDA_BUILD_RESULT.md) for the complete device
+procedure, failure interpretation, and upstream rebuild recipe.
 
 ## 🗂 Repository map
 
 ```text
 frida-banana/
-├── capture_hwbp.js                  # resilient hardware-breakpoint capture helper
+├── capture_hwbp.js                  # resilient hardware-breakpoint capture harness
 ├── presence_only.js                 # minimal injection / mapping probe
-├── stealth-frida-gum.patch          # W^X, VMA labels, scheduler rename
-├── stealth-frida-core.patch         # agent thread and memfd rename
+├── stealth-frida-gum.patch          # W^X, VMA labels, scheduler names
+├── stealth-frida-core.patch         # agent thread and memfd names
 ├── stealth-patches-BASE-COMMITS.txt # pinned upstream bases
-├── STEALTH_FRIDA_BUILD_RESULT.md    # deep technical and acceptance notes
+├── STEALTH_FRIDA_BUILD_RESULT.md    # technical rationale and acceptance procedure
+├── docs/assets/                     # banana-themed project artwork
 ├── subprojects/                     # vendored Frida 17.9.1 source tree
-└── releng/                          # vendored Frida build tooling
+└── releng/                          # vendored Frida build tooling + version pin
 ```
 
 ## ⚖️ Scope and responsibility
