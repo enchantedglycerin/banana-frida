@@ -5,6 +5,13 @@ with **NDK r29** (29.0.14206865), frida SDK/toolchain `20260311`, meson 1.11.2.
 
 ## Deliverable
 
+> **This repository ships the SOURCE, not the built binary.** Build it yourself with the
+> "Rebuild recipe" at the bottom (`./configure --host=android-arm64` → `ninja …`); the output
+> is `build/subprojects/frida-core/server/frida-server`. The sha256 values below are for the
+> **reference build** from this exact source — a matching hash confirms a byte-identical build
+> (frida's build is deterministic). If you were handed the prebuilt binary separately, verify
+> it against these.
+
 | file | size | sha256 |
 |------|------|--------|
 | `stealth-frida-server-17.9.1-android-arm64`     | 53,091,240 | `fa087dd74f5b09a24276ae3f5f6d454716c17efaa34a46deca92bb77c34f2f32` |
@@ -108,7 +115,7 @@ adb shell su -c 'chmod 755 /data/local/tmp/.gc-srv && /data/local/tmp/.gc-srv -l
 **Step 2 — attach presence-only (QuickJS), compare rwx to the Step 0 baseline.**
 **[host]:**
 ```
-frida -H 127.0.0.1:17173 --runtime=qjs -f com.devsisters.crg -l frida/presence_only.js
+frida -H 127.0.0.1:17173 --runtime=qjs -f com.devsisters.crg -l presence_only.js
 ```
 **[device]** (new `adb shell` → `su`, while the frida session is live):
 ```
@@ -132,7 +139,7 @@ First **end the Step 2/3 session**: it spawned CRK with `-f`, so quit that frida
 spawns a clean process. **[host]:**
 ```
 adb shell su -c 'am force-stop com.devsisters.crg'    # ensure no stale CRK/agent is left
-frida -H 127.0.0.1:17173 --runtime=qjs -f com.devsisters.crg -l frida/capture_hwbp.js
+frida -H 127.0.0.1:17173 --runtime=qjs -f com.devsisters.crg -l capture_hwbp.js
 ```
 Confirm `[CAPTURED] key=… nonce=… din=… dout=…` during asset load. keystream = din XOR dout;
 that + `djb_format` notes finish the offline decryptor for the 214 base-APK `.djb` files.

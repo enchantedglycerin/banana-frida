@@ -1,62 +1,48 @@
-# Frida
+# banana-frida — stealth Frida 17.9.1 (Android arm64)
 
-Dynamic instrumentation toolkit for developers, reverse-engineers, and security
-researchers. Learn more at [frida.re](https://frida.re/).
+A patched fork of [Frida](https://github.com/frida/frida) **17.9.1**, built to run on Android
+**without leaving the `rwxp` anonymous-memory footprint** that map-scanning anti-cheats key on.
+Everything else behaves like stock Frida 17.9.1.
 
-Two ways to install
-===================
+> This is a flattened snapshot fork (the upstream git submodules were vendored into one tree so
+> the whole thing clones and builds without `git submodule` juggling). It is tagged `17.9.1` so
+> the build reports the correct version.
 
-## 1. Install from prebuilt binaries
+## What's patched (source-level)
+1. **Force W^X in frida-gum** (`gum_query_rwx_support()` → `GUM_RWX_NONE` on Android): gum
+   allocates `RW` then `mprotect`s to `RX`, so it never creates a writable+executable page —
+   the primary tell. (`gum_ensure_code_readable()` also softens execute-only pages to `RX`, not
+   `RWX`.)
+2. **Name gum's anonymous regions** as `[anon:dalvik-LinearAlloc]` / `[anon:dalvik-jit-code-cache]`
+   via `PR_SET_VMA_ANON_NAME`, so they blend with ART instead of showing as unnamed anon maps.
+3. **Rename runtime-visible threads** (`gum-js-loop` → `gc-worker`, pool workers,
+   `frida-eternal-agent` → `gc-daemon`, `frida-agent-container` → `gc-container`).
+4. **Rename the injected agent memfd** (`frida-agent-<arch>.so` → `art-jit-cache-<arch>.so`) —
+   its `/proc/self/maps` name inside the target.
 
-This is the recommended way to get started. All you need to do is:
+Full write-up, rationale, and on-device verification steps: **[STEALTH_FRIDA_BUILD_RESULT.md](STEALTH_FRIDA_BUILD_RESULT.md)**.
+The exact diffs are also in `stealth-frida-gum.patch` / `stealth-frida-core.patch`
+(base commits in `stealth-patches-BASE-COMMITS.txt`) — they apply cleanly onto a stock
+frida 17.9.1 checkout if you'd rather patch upstream yourself.
 
-    pip install frida-tools # CLI tools
-    pip install frida       # Python bindings
-    npm install frida       # Node.js bindings
+## Build (Android arm64)
+Needs **NDK r29** (exactly — frida pins major==29), Node 20, and meson/ninja:
+```sh
+export ANDROID_NDK_ROOT=/path/to/android-ndk-r29
+./configure --host=android-arm64
+ninja -C build subprojects/frida-core/server/frida-server
+# output (already stripped): build/subprojects/frida-core/server/frida-server
+```
+The binary is **not** committed here — build it, or verify a handed-off binary against the
+sha256 in the build write-up (the build is deterministic / byte-identical).
 
-You may also download pre-built binaries for various operating systems from
-Frida's [releases](https://github.com/frida/frida/releases) page on GitHub.
+## Using it
+- Host `frida-tools` must be **17.9.1** to match.
+- **Run scripts with `--runtime=qjs`** (the default). Do **not** use `--runtime=v8` — V8's JIT
+  allocates its own executable pages outside frida-gum and reintroduces an `rwx` region.
+- Capture/verify helpers: `presence_only.js` (rwx-baseline probe) and `capture_hwbp.js`
+  (hardware-breakpoint keystream capture, no `.text` patching).
 
-## 2. Build your own binaries
-
-Run:
-
-    make
-
-You may also invoke `./configure` first if you want to specify a `--prefix`, or
-any other options.
-
-### CLI tools
-
-For running the Frida CLI tools, e.g. `frida`, `frida-ls-devices`, `frida-ps`,
-`frida-kill`, `frida-trace`, `frida-discover`, etc., you need a few packages:
-
-    pip install colorama prompt-toolkit pygments websockets
-
-### Apple OSes
-
-First make a trusted code-signing certificate. If you have already used Xcode
-before, chances are you already have an Apple development certificate.
-You can check it with the following command:
-
-    security find-identity -v -p codesigning
-
-Which will return the certificate in the following format:
-
-    1) XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX "Apple Development: user@mail.com (YYYYYYYYYY)"
-
-If you do not have a certificate, follow this guide: 
-https://help.apple.com/xcode/mac/current/#/dev154b28f09.
-
-Next export the name of your certificate to relevant environment
-variables, and run `make`:
-
-    export MACOS_CERTID=XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-    export IOS_CERTID=XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-    export WATCHOS_CERTID=XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-    export TVOS_CERTID=XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-    make
-
-## Learn more
-
-Have a look at our [documentation](https://frida.re/docs/home/).
+## Credits
+See [CONTRIBUTORS.md](CONTRIBUTORS.md). Upstream Frida © its authors, wxWindows Library
+Licence 3.1 — this fork keeps that license.
