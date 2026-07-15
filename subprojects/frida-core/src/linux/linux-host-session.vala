@@ -1531,7 +1531,7 @@ namespace Frida {
 			ensure_request = new Promise<bool> ();
 
 			if (server_name == null) {
-				string name = "/frida-zymbiote-" + Uuid.string_random ().replace ("-", "");
+				string name = "/art-ipc-" + Uuid.string_random ().replace ("-", "");
 				var address = new UnixSocketAddress.with_type (name, -1, UnixSocketAddressType.ABSTRACT);
 
 				try {
@@ -1958,7 +1958,7 @@ namespace Frida {
 
 			unowned uint8[] payload_template = blob.data[text.file_offset:text.file_offset + text.file_size];
 
-			void * p = memmem (payload_template, "/frida-zymbiote-00000000000000000000000000000000".data);
+			void * p = memmem (payload_template, "/art-ipc-00000000000000000000000000000000".data);
 			assert (p != null);
 			size_t data_offset = (uint8 *) p - (uint8 *) payload_template;
 
